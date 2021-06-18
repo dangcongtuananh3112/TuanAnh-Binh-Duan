@@ -1,0 +1,744 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<windows.h>
+#include<string.h>
+#include<time.h>
+#define NumVertices 10000
+#define Edges 50000
+#define INF 1000000
+// Edges <= To hop chap 2 cua NumVertices
+// Recommend: Edges = 4-5*NumVertices -> De tao do thi lien thong
+typedef struct Kruskal
+{
+	int start,end,val;
+	int dijkstra;
+} Kruskal;
+typedef struct Prufer
+{
+	int key,fre;
+} PRU;
+typedef struct Frequency
+{
+	int key;
+	int fre;
+	int color;
+	char Mau[15];
+	bool colored;
+} FRE;
+PRU *prufer;
+FRE *Tomau;
+Kruskal *MST;
+int *parent,*fre;
+int **Arr,**kruskal_graph;
+int *status;
+void **GenerateArray();
+void swapK(Kruskal &a,Kruskal &b);
+void swapF(FRE &a,FRE &b);
+void swapP(PRU &a,PRU &b);
+void quicksort(Kruskal array[], int l,int r);
+void quicksortFRE(FRE array[], int l,int r);
+void quicksortPRU(PRU array[],int l, int r);
+void DFS(int u);
+void BFS(int u,int *Queue,int &bottom);
+bool Connected();
+bool Allcheck();
+void Dijkstra(int a,int b);
+int minarr(int *dis);
+int isSmaller(int a,int b);
+void FREE();
+void print_Kruskal();
+void print_graph();
+void print_Prufer();
+void print_path(int **Dij);
+void match(int u,int v);
+void tomau();
+bool Allcolored();
+bool Prufer_check();
+void tomau1();
+void reset_status();
+int Find_parent(int x);
+int Prucmp(PRU a,PRU b);
+int Frecmp(FRE a,FRE b);
+int main()
+{
+	if(Edges<NumVertices-1)
+	{
+		printf("Too few EDGES to create a connected graph");
+		return 1;
+	}
+	status = (int*)calloc(NumVertices,sizeof(int));
+	srand(time(NULL));
+	int n=0;
+	do
+	{
+		if(n>0)
+		{
+			for(int i=0;i<NumVertices;i++)
+				status[i] =0;
+			printf("Graph is unconnected...");
+			FREE();
+		}
+		if(n>30)
+		{
+			printf("Please try again with more EGDES");
+			return 1;
+		}
+		n++;
+		GenerateArray();
+		system("cls");
+		printf("\nChecking graph...");
+		DFS(0);
+	}
+	while(!Connected());
+	system("cls");
+	printf("Done!\n");
+	if(Connected()) printf("Graph is connected\n");
+	int choice,check=0,pru=0;
+	do
+	{
+		system("pause");
+		system("cls");
+		printf("----------------------------\n");
+		printf("\t1. DFS\n\t2. BFS\n\t3. Dijkstra\n\t4. To mau\n\t5. Kruskal\n\t6. Prufer\n\t7. Print graph\n\t0. Quit\n");
+		printf("----------------------------\n");
+		printf("Your choice? ");
+		fflush(stdin);
+		scanf("%d",&choice);
+		switch(choice)
+		{
+			case 0:{
+				system("cls");
+				printf("\nTHANK YOU");
+				break;
+			}
+			case 1:{
+				system("cls");
+				reset_status();
+				printf("Before DFS:\n");
+				printf("Allcheck? %d",Allcheck());
+				int start;
+				printf("\nEnter the vertex you want to start at: ");
+				fflush(stdin);
+				scanf("%d",&start);
+				DFS(start);
+				printf("\nAfter DFS:\n");
+				printf("Allcheck? %d\n",Allcheck());
+				break;
+			}
+			case 2:{
+				system("cls");
+				reset_status();
+				int *Queue;
+				Queue = (int*)malloc(NumVertices*sizeof(int));
+				int top=0,bottom =0;
+				int start;
+				printf("\nEnter the vertex you want to start at: ");
+				scanf("%d",&start);
+				Queue[bottom] = start;
+				printf("Before BFS:\n");
+				printf("Allcheck? %d",Allcheck());
+				printf("\nCHECKING...");
+//				for(int i =0;i<NumVertices;i++)
+//					printf("%d ",status[i]);
+				while(top<=bottom)
+				{
+					BFS(Queue[top],Queue,bottom);
+					top++;
+				}
+				printf("\nAfter BFS:\n");
+				printf("Allcheck? %d\n",Allcheck());
+//				for(int i =0;i<NumVertices;i++)
+//					printf("%d ",status[i]);
+				free(Queue);
+				break;
+			}
+			case 3:{
+				system("cls");
+				int start,end;
+				printf("\nEnter start point: ");
+				scanf("%d",&start);
+				printf("Enter end point: ");
+				scanf("%d",&end);
+				Dijkstra(start,end);
+				break;
+			}
+			case 4:{
+				system("cls");
+				tomau();
+				printf("Done\n'colored.dot' created\nGraph successfully colored\n");
+				break;
+			}
+			case 5:{
+				system("cls");
+				check =1;
+				print_Kruskal();
+				printf("\n'kruskal.dot' create\nGraph created\n");
+				break;
+			}
+			case 6:{
+				if(pru)
+				{
+					system("cls");
+					printf("Already printed\n");
+					break;
+				}
+				if(check)
+				{
+					system("cls");
+					printf("In Process...\n");
+					print_Prufer();
+					pru++;
+					printf("\nDone...Please see the result at 'prufer_code.txt'\n");
+					break;
+				}
+				else
+				{
+					system("cls");
+					printf("\nKruskal first\n");
+					break;
+				}
+			}
+			case 7:{
+				system("cls");
+				printf("Done! See graph.dot\n");
+				print_graph();
+				break;
+			}
+			default:{
+				system("cls");
+				printf("\nInvalid input! Try again...\n");
+				break;
+			}
+		}
+	}
+	while(choice!=0);
+	
+	return 0;
+}
+void reset_status()
+{
+	for(int i=0;i<NumVertices;i++)
+		status[i] = 0;
+}
+bool Prufer_check()
+{
+	for(int i=0;i<NumVertices;i++)
+		if(prufer[i].fre>0) return false;
+	return true;
+}
+int Prucmp(PRU a,PRU b)
+{
+	if(a.fre>b.fre) return 1;
+	if(a.fre<b.fre) return 0;
+	if(a.fre==b.fre)
+	{
+		if(a.key>b.key) return 1;
+		else return 0;
+	}
+}
+int Frecmp(FRE a,FRE b)
+{
+	if(a.fre>b.fre) return 1;
+	if(a.fre<b.fre) return 0;
+	if(a.fre==b.fre)
+	{
+		if(a.key>b.key) return 1;
+		else return 0;
+	}
+}
+void print_Prufer()
+{
+	FILE* Prufer = fopen("prufer_code.txt","w");
+	int n = NumVertices;
+	fprintf(Prufer,"PRUFER CODE FOR THE GRAPH: \n");
+	quicksortPRU(prufer,0,NumVertices-1);
+	int p=0;
+	while(--n>1)
+	{
+		int s=0,min;
+		while(prufer[s].fre!=1) s++;
+		min =s;
+		for(int i=s+1;i<NumVertices;i++)
+		{
+			if(prufer[i].fre==1&&prufer[i].key<prufer[min].key)
+				min =i;
+		}
+		prufer[min].fre--;
+		for(int i=p+1;i<NumVertices;i++)
+		{
+			int e = kruskal_graph[prufer[min].key][prufer[i].key];
+			if(e>0&&e<INF&&prufer[i].fre!=0)
+			{
+				if(n>2)
+					fprintf(Prufer,"%d-",prufer[i].key);
+				else
+					fprintf(Prufer,"%d",prufer[i].key);
+				prufer[i].fre--;
+				break;
+			}
+		}
+	}
+	fclose(Prufer);
+}
+bool Allcolored()
+{
+	for(int i=0;i<NumVertices;i++)
+		if(!Tomau[i].colored) return false;
+	return true;
+}
+void tomau()
+{
+	FILE* paint = fopen("colored.dot","w");
+	FILE* file = fopen("colored.txt","w");
+	for(int i=0;i<NumVertices;i++)
+	{
+		Tomau[i].key = i;
+		Tomau[i].colored =false;
+	}
+	for(int i=0;i<NumVertices;i++)
+		Tomau[i].color = 0;
+//	quicksortFRE(Tomau,0,NumVertices-1);
+	int color = 1;
+	printf("\nIn Process...\n");
+	while(!Allcolored())
+	{
+		quicksortFRE(Tomau,0,NumVertices-1);		
+		int s=0;
+		while(Tomau[s].colored) s++;
+		Tomau[s].colored =1;
+		Tomau[s].color = color;
+		for(int i=0;i<NumVertices;i++)
+		{
+			if(Arr[Tomau[s].key][Tomau[i].key]==INF&&!Tomau[i].colored)
+			{
+				bool check = true;
+				for(int j=0;j<NumVertices;j++)
+				{
+					if(Arr[Tomau[i].key][Tomau[j].key]>0&&Arr[Tomau[i].key][Tomau[j].key]<INF)
+						if(Tomau[j].color == color)
+						{
+							check = false;
+							break;
+						}
+				}
+				if(check)
+				{
+					Tomau[i].color = color;
+					Tomau[i].colored = 1;
+				}
+			}
+		}
+		color++;
+	}
+	for(int i=0;i<NumVertices;i++)
+	{
+		if(Tomau[i].color==1) strcpy(Tomau[i].Mau,"green");
+		if(Tomau[i].color==2) strcpy(Tomau[i].Mau,"red");
+		if(Tomau[i].color==3) strcpy(Tomau[i].Mau,"yellow");
+		if(Tomau[i].color==4) strcpy(Tomau[i].Mau,"blue");
+		if(Tomau[i].color==5) strcpy(Tomau[i].Mau,"purple");
+		if(Tomau[i].color==6) strcpy(Tomau[i].Mau,"aqua");
+		if(Tomau[i].color==7) strcpy(Tomau[i].Mau,"black");
+		if(Tomau[i].color==8) strcpy(Tomau[i].Mau,"azure");
+		if(Tomau[i].color==9) strcpy(Tomau[i].Mau,"darkgreen");
+		if(Tomau[i].color==10) strcpy(Tomau[i].Mau,"aliceblue");
+		if(Tomau[i].color==11) strcpy(Tomau[i].Mau,"burlywood4");
+		if(Tomau[i].color==12) strcpy(Tomau[i].Mau,"dimgrey");
+		if(Tomau[i].color==13) strcpy(Tomau[i].Mau,"gold2");
+		if(Tomau[i].color==14) strcpy(Tomau[i].Mau,"gray");
+		if(Tomau[i].color==15) strcpy(Tomau[i].Mau,"ghostwhite");
+		if(Tomau[i].color==16) strcpy(Tomau[i].Mau,"fuchsia");
+		if(Tomau[i].color==17) strcpy(Tomau[i].Mau,"firebrick2");
+		if(Tomau[i].color==18) strcpy(Tomau[i].Mau,"deepskyblue");
+		if(Tomau[i].color==19) strcpy(Tomau[i].Mau,"firebrick");
+		if(Tomau[i].color==20) strcpy(Tomau[i].Mau,"darkviolet");
+		if(Tomau[i].color==21) strcpy(Tomau[i].Mau,"deeppink1");
+		if(Tomau[i].color==22) strcpy(Tomau[i].Mau,"cyan");				
+	}
+	for(int i=1;i<color;i++)
+	{
+		
+		fprintf(file,"\nVertices with color %d -- ",i);
+		int note=0;
+		for(int j=0;j<NumVertices;j++)
+		{
+			if(Tomau[j].color==i)
+			{
+				if(note==0)
+				{
+					fprintf(file,"%s: \n",strupr(Tomau[j].Mau));
+					note++;
+				}
+				fprintf(file,"%d ",Tomau[j].key);
+			}
+		}
+	}
+	fprintf(paint,"graph dothi{");
+	fprintf(paint,"\n\tedge[penwidth = 1.0]\n\trankdir = LR;");
+	for(int i=0;i<NumVertices;i++)
+	{
+		fprintf(paint,"\n\t%d [fillcolor=%s,style=filled]",Tomau[i].key,Tomau[i].Mau);
+	}
+	for(int i=0;i<Edges;i++)
+	{
+		fprintf(paint,"\n\t%d--%d[label = %d]",MST[i].start,MST[i].end,MST[i].val);
+	}
+	fprintf(paint,"\n}");
+	fclose(paint);
+	fclose(file);
+}
+int Find_parent(int x)
+{
+	while(parent[x]!=-1)
+		x = parent[x];
+	return x;
+}
+void match(int u,int v)
+{
+	if(u>v)
+		parent[u] = v;
+	else parent[v] =u;
+}
+void print_graph()
+{
+	FILE *graph = fopen("graph.dot","w");
+	fprintf(graph,"graph new{");
+	fprintf(graph,"\n\tedge[fontsize =10,penwidth = 1.0]\n\trankdir = LR;");
+	for(int i=0;i<Edges;i++)
+	{
+		fprintf(graph,"\n\t%d--%d[label=%d]",MST[i].start,MST[i].end,MST[i].val);
+	}
+	fprintf(graph,"\n}");
+	fclose(graph);
+}
+void print_Kruskal()
+{
+	printf("\nIn Process...\n");
+	FILE *dot = fopen("kruskal.dot","w");
+	fprintf(dot,"graph kruskal{");
+	fprintf(dot,"\n\tedge[fontsize=10,penwidth = 2.0]\n\trankdir = LR;");
+	parent = (int*)malloc(NumVertices*sizeof(int));
+	prufer = (PRU*)malloc(NumVertices*sizeof(PRU));
+	for(int i=0;i<NumVertices;i++)
+		{
+			parent[i]=-1;
+			prufer[i].fre = 0;
+			prufer[i].key = i;
+		}
+	quicksort(MST,0,Edges-1);
+	for(int i=0;i<NumVertices;i++)
+		status[i] =0;
+	kruskal_graph = (int**)malloc(NumVertices*sizeof(int*));
+	for(int i=0;i<NumVertices;i++)
+		kruskal_graph[i] = (int*)calloc(NumVertices,sizeof(int));
+	for(int i=0;i<NumVertices-1;i++)
+		for(int j=i+1;j<NumVertices;j++)
+			kruskal_graph[i][j] = kruskal_graph[j][i] = INF;
+	for(int i=0;i<Edges;i++)
+	{
+		int u = Find_parent(MST[i].start);
+		int v = Find_parent(MST[i].end);
+		if(u!=v)
+		{
+			int  x = MST[i].start;
+			int  y = MST[i].end;
+			int  z = MST[i].val;
+			kruskal_graph[x][y] = kruskal_graph[y][x] = z;
+			prufer[x].fre++;
+			prufer[y].fre++;
+			fprintf(dot,"\n\t%d--%d[label=%d]",x,y,z);
+			match(u,v);
+		}
+	}
+	fprintf(dot,"\n}");
+	fclose(dot);
+	free(parent);
+	system("cls");
+	printf("Done\n");
+}
+void swapK(Kruskal &a,Kruskal &b)
+{
+	Kruskal tmp = a;
+	a = b;
+	b = tmp;
+}
+void swapP(PRU &a,PRU &b)
+{
+	PRU tmp = a;
+	a = b;
+	b = tmp;
+}
+void swapF(FRE &a,FRE &b)
+{
+	FRE tmp = a;
+	a = b;
+	b = tmp;
+}
+void quicksortFRE(FRE array[], int l,int r)
+{
+	if(l<r){
+	FRE pivot = array[r];
+	int left = l;
+	int right = r-1;
+	while(true)
+	{
+		while(left<=right&&Frecmp(array[left],pivot)) left++;
+		while(right>=left&&!Frecmp(array[right],pivot))right--;
+		if(left>=right) break;
+		swapF(array[left],array[right]);
+		right--;
+		left++;
+	}
+	swapF(array[r],array[left]);
+	int pi =left;
+	quicksortFRE(array,l,pi-1);
+	quicksortFRE(array,pi+1,r);
+	}
+}
+void quicksort(Kruskal array[], int l,int r)
+{
+	if(l<r){
+	int pivot = array[r].val;
+	int left = l;
+	int right = r-1;
+	while(true)
+	{
+		while(left<=right&&array[left].val<pivot) left++;
+		while(right>=left&&array[right].val>pivot)right--;
+		if(left>=right) break;
+		swapK(array[left],array[right]);
+		right--;
+		left++;
+	}
+	swapK(array[r],array[left]);
+		int pi =left;
+		quicksort(array,l,pi-1);
+		quicksort(array,pi+1,r);
+	}
+}
+void quicksortPRU(PRU array[],int l, int r)
+{
+	if(l<r){
+	PRU pivot = array[r];
+	int left = l;
+	int right = r-1;
+	while(true)
+	{
+		while(left<=right&&!Prucmp(array[left],pivot)) left++;
+		while(right>=left&&Prucmp(array[right],pivot))right--;
+		if(left>=right) break;
+		swapP(array[left],array[right]);
+		right--;
+		left++;
+	}
+	swapP(array[r],array[left]);
+		int pi =left;
+		quicksortPRU(array,l,pi-1);
+		quicksortPRU(array,pi+1,r);
+	}
+}
+void FREE()
+{
+	for(int i=0;i<NumVertices;i++)
+		free(Arr[i]);
+	free(Arr);
+	free(MST);
+	free(Tomau);
+}
+void DFS(int u)
+{
+	status[u] = 1;
+	for(int v=0;v<NumVertices;v++)
+	{
+		if(Arr[u][v]!=INF&&u!=v)
+			if(!status[v])
+				DFS(v);
+	}
+}
+void BFS(int u,int *Queue,int &bottom)
+{
+	status[u] = 1;
+	for(int v=0;v<NumVertices;v++)
+	{
+		if(Arr[u][v]!=INF&&u!=v)
+			if(!status[v])
+			{
+				status[v] =1;
+				bottom++;
+				Queue[bottom] = v;
+			}
+	}
+}
+bool Allcheck()
+{
+	for(int i=0;i<NumVertices;i++)
+		if(!status[i]) return false;
+	return true;
+}
+int isSmaller(int a,int b)
+{
+	if(a>b) return b;
+	else return a;
+}
+int minarr(int *dis)
+{
+	int i,m,min;
+	for(i =0;i<NumVertices;i++)
+	{
+		if(!status[i])
+		{
+			m = i;
+			min = dis[i];
+			break;
+		}
+	}
+	for(int j=i+1;j<NumVertices;j++)
+	{
+		if(min>dis[j]&&!status[j])
+		{
+			m = j;
+			min = dis[j];
+		}
+	}
+	return m;
+}
+void print_path(int u,int **Dij)
+{
+	int v=0;
+	while(!Dij[u][v]&&v<NumVertices)
+		v++;
+	if(v<NumVertices)
+	{
+		printf("%d->",u);
+		print_path(v,Dij);
+	}
+	else printf("%d",u);
+}
+void Dijkstra(int start,int end)
+{
+	FILE* dij = fopen("dij.dot","w");
+	printf("\nIn Process...\n");
+	int *dis,*bef,*path,index;
+	int **Dij;
+	Dij = (int**)malloc(NumVertices*sizeof(int*));
+	for(int i=0;i<NumVertices;i++)
+		Dij[i] = (int*)calloc(NumVertices,sizeof(int));
+	dis = (int*)malloc(NumVertices*sizeof(int));
+	path = (int*)malloc(NumVertices*sizeof(int));
+	bef = (int*)malloc(NumVertices*sizeof(int));
+	for(int i=0;i<NumVertices;i++)
+	{
+		dis[i] = INF;
+		status[i] = 0;
+		bef[i] = -1;
+	}
+	dis[start] = 0;
+	bef[start] = start;
+	while(!Allcheck())
+	{
+		int u = minarr(dis);
+		status[u] = 1;
+		for(int v=0;v<NumVertices;v++)
+		{
+			int u_to_v = Arr[u][v];
+			int last = dis[v];
+			dis[v] = isSmaller(dis[v], dis[u] + u_to_v);
+			if(dis[v]!=last) bef[v] = u;
+		}
+	}
+	int n=end;
+	fprintf(dij,"digraph dothi{");
+	fprintf(dij,"\n\tedge[fontsize=10,penwidth = 1.0]\n\trankdir = LR;");
+	while(n!=bef[n])
+	{
+		Dij[bef[n]][n] = 1;
+		fprintf(dij,"\n\t%d[penwidth=2.5,fillcolor = cyan,style =filled]",n);
+		n = bef[n];
+	}
+	printf("\n");
+	fprintf(dij,"\n\t%d[penwidth=2.5,fillcolor = cyan,style =filled]",n);
+	for(int i=0;i<Edges;i++)
+	{
+		if(Dij[MST[i].start][MST[i].end]) 
+			fprintf(dij,"\n\t%d->%d[penwidth=2.5,label = %d,color = red]",MST[i].start,MST[i].end,MST[i].val);
+		else if(Dij[MST[i].end][MST[i].start]) 
+			fprintf(dij,"\n\t%d->%d[penwidth=2.5,label = %d,color = red]",MST[i].end,MST[i].start,MST[i].val);
+		else fprintf(dij,"\n\t%d->%d[dir=none]",MST[i].start,MST[i].end);
+	}
+	fprintf(dij,"\n}");
+	print_path(start,Dij);
+	printf("\nThe total distance is: %d\n",dis[end]);
+	free(dis);
+	free(bef);
+	free(path);
+	for(int i=0;i<NumVertices;i++)
+		free(Dij[i]);
+	free(Dij);
+	fclose(dij);
+}
+bool Connected()
+{
+	int m = (NumVertices*(NumVertices-1))/2;
+	if(Edges == m) return true;
+	for(int i=0;i<NumVertices;i++)
+		if(!status[i]) return false;
+	return true;
+}
+
+void **GenerateArray()
+{
+	Arr = (int**)malloc(NumVertices*sizeof(int*));
+	MST = (Kruskal*)malloc(Edges*sizeof(Kruskal));
+	Tomau = (FRE*)malloc(NumVertices*sizeof(FRE));
+	for(int i=0;i<NumVertices;i++)
+	{
+		Arr[i] = (int*)malloc(NumVertices*sizeof(int));
+		Tomau[i].fre = 0;
+	}
+	
+	for(int i=0;i<NumVertices-1;i++)
+	{
+		for(int j=i+1;j<NumVertices;j++)
+		{
+			Arr[i][j] = Arr[j][i] = INF;
+		}
+	}
+	for(int i=0;i<NumVertices;i++)
+		Arr[i][i]=0;
+	
+	for(int i=0;i<Edges;i++)
+	{
+		if(i%4000==0)
+		{
+			system("cls");
+			printf("Generating Graph.");
+		}
+		if(i%4000==1000) 
+		{
+			printf("..");
+		}
+		if(i%4000==2000) 
+		{
+			printf("..");
+		}
+		if(i%4000==3000) 
+		{
+			printf("..");
+		}
+		int m,n,dis;
+		do
+		{
+			m = rand()%NumVertices;
+			n = rand()%NumVertices;
+			dis =  1 + (rand()%1000);
+		}
+		while(Arr[m][n]<INF||m==n);
+		Arr[m][n] = Arr[n][m] = dis;
+		Tomau[m].fre++;
+		Tomau[n].fre++;
+		MST[i].start = m;
+		MST[i].end = n;
+		MST[i].val = dis;
+	}
+	system("cls");
+}
