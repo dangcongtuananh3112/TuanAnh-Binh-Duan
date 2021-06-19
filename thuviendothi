@@ -25,12 +25,14 @@ typedef struct Frequency
 	char Mau[15];
 	bool colored;
 } FRE;
+FILE *dfs,*bfs;
 PRU *prufer;
 FRE *Tomau;
 Kruskal *MST;
 int *parent,*fre;
 int **Arr,**kruskal_graph;
 int *status;
+int dfs_open =0,dfs_count,bfs_count;
 void **GenerateArray();
 void swapK(Kruskal &a,Kruskal &b);
 void swapF(FRE &a,FRE &b);
@@ -114,27 +116,35 @@ int main()
 			case 1:{
 				system("cls");
 				reset_status();
+				dfs = fopen("DFS.txt","w");
+				dfs_open =1;
+				dfs_count =0;
 				printf("Before DFS:\n");
 				printf("Allcheck? %d",Allcheck());
 				int start;
-				printf("\nEnter the vertex you want to start at: ");
+				printf("\nEnter the vertex you want to start at (x<%d): ",NumVertices);
 				fflush(stdin);
 				scanf("%d",&start);
+				fprintf(dfs,"Search order: \n");
 				DFS(start);
 				printf("\nAfter DFS:\n");
-				printf("Allcheck? %d\n",Allcheck());
+				printf("Allcheck? %d\nSee search order at 'DFS.txt'\n",Allcheck());
+				fclose(dfs);
 				break;
 			}
 			case 2:{
 				system("cls");
 				reset_status();
+				bfs = fopen("BFS.txt","w");
+				bfs_count =1;
 				int *Queue;
 				Queue = (int*)malloc(NumVertices*sizeof(int));
 				int top=0,bottom =0;
 				int start;
-				printf("\nEnter the vertex you want to start at: ");
+				printf("\nEnter the vertex you want to start at (x<%d):",NumVertices);
 				scanf("%d",&start);
 				Queue[bottom] = start;
+				fprintf(bfs,"Search order:\n%d->",start);
 				printf("Before BFS:\n");
 				printf("Allcheck? %d",Allcheck());
 				printf("\nCHECKING...");
@@ -146,18 +156,19 @@ int main()
 					top++;
 				}
 				printf("\nAfter BFS:\n");
-				printf("Allcheck? %d\n",Allcheck());
+				printf("Allcheck? %d\nSee search order at 'BFS.txt'\n",Allcheck());
 //				for(int i =0;i<NumVertices;i++)
 //					printf("%d ",status[i]);
 				free(Queue);
+				fclose(bfs);
 				break;
 			}
 			case 3:{
 				system("cls");
 				int start,end;
-				printf("\nEnter start point: ");
+				printf("\nEnter start point (x<%d): ",NumVertices);
 				scanf("%d",&start);
-				printf("Enter end point: ");
+				printf("Enter end point (x<%d): ",NumVertices);
 				scanf("%d",&end);
 				Dijkstra(start,end);
 				break;
@@ -547,6 +558,12 @@ void FREE()
 }
 void DFS(int u)
 {
+	dfs_count++;
+	if(dfs_open)
+	{
+		if(dfs_count==NumVertices) fprintf(dfs,"%d",u);
+		else fprintf(dfs,"%d->",u);
+	}
 	status[u] = 1;
 	for(int v=0;v<NumVertices;v++)
 	{
@@ -563,6 +580,9 @@ void BFS(int u,int *Queue,int &bottom)
 		if(Arr[u][v]!=INF&&u!=v)
 			if(!status[v])
 			{
+				bfs_count++;
+				if(bfs_count<NumVertices)fprintf(bfs,"%d->",v);
+				else fprintf(bfs,"%d",v);
 				status[v] =1;
 				bottom++;
 				Queue[bottom] = v;
